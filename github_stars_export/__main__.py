@@ -1,14 +1,13 @@
+import logging.handlers
 import os
-from multiprocessing.managers import Value
 from typing import Any
 
-from github_stars_export import __project__
 import requests
 import rich_click as click
 from dotenv import load_dotenv
 from notion_client import Client
-import logging
-import logging.handlers
+
+from github_stars_export import __project__
 
 # Load environment variables
 load_dotenv()
@@ -92,13 +91,19 @@ def cli_run(context: click.Context):
 
 
 # Function to get starred repositories from GitHub
-def get_starred_repos() -> list[object]:
+def get_starred_repos(github_api_url: str, github_api_token: str) -> list[object]:
     """
     Get the list of starred repositories
+    :param github_api_token:
+    :type github_api_url: str
     :return:
     """
-    headers = {"Authorization": f"token {GITHUB_API_TOKEN}"}
-    response = requests.get(GITHUB_API_URL, headers=headers)
+    if not github_api_token:
+        raise ValueError("The GitHub API token is invalid or null")
+    if not github_api_url:
+        raise ValueError("The GitHub API url is invalid or null")
+    headers = {"Authorization": f"token {github_api_token}"}
+    response = requests.get(github_api_url, headers=headers)
 
     if response.status_code == 200:
         return response.json()
@@ -110,8 +115,8 @@ def get_starred_repos() -> list[object]:
 # Function to add a GitHub project to Notion
 def add_project_to_notion(repository: dict[str, Any], notion_database_id: str):
     """
-
-    :param notion_database_id:
+    Add the project to Notion
+    :param notion_database_id: The Notion database ID
     :type repository: object
     :param repository:
     :return:
