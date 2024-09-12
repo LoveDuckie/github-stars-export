@@ -87,11 +87,11 @@ def cli_run(context: click.Context):
         raise ValueError("The Notion API token is invalid or null")
     if not notion_database_id:
         raise ValueError("The Notion database ID is invalid or null")
-    sync_starred_projects_to_notion(notion_database_id)
+    sync_starred_projects_to_notion(github_api_token, notion_api_token, notion_database_id)
 
 
 # Function to get starred repositories from GitHub
-def get_starred_repos(github_api_url: str, github_api_token: str) -> list[object]:
+def get_starred_repos(github_api_url: str, github_api_token: str) -> list[dict]:
     """
     Get the list of starred repositories
     :param github_api_token:
@@ -104,18 +104,20 @@ def get_starred_repos(github_api_url: str, github_api_token: str) -> list[object
         raise ValueError("The GitHub API url is invalid or null")
     headers = {"Authorization": f"token {github_api_token}"}
     response = requests.get(github_api_url, headers=headers)
+    repositories: list[dict] = []
 
     if response.status_code == 200:
         return response.json()
     else:
         print(f"Failed to retrieve starred repositories: {response.status_code}")
-        return []
+        return repositories
 
 
 # Function to add a GitHub project to Notion
-def add_project_to_notion(repository: dict[str, Any], notion_database_id: str):
+def add_project_to_notion(repository: dict[str, Any], notion_api_token: str, notion_database_id: str):
     """
     Add the project to Notion
+    :param notion_api_token: The API token for interfacing with Notion
     :param notion_database_id: The Notion database ID
     :type repository: object
     :param repository:
@@ -125,6 +127,15 @@ def add_project_to_notion(repository: dict[str, Any], notion_database_id: str):
     description = repository.get("description", "No description provided.")
     topics = repository.get("topics", [])
     url = repository.get("html_url")
+
+    if not title:
+        raise ValueError("The title is invalid or null")
+    if not description:
+        raise ValueError("The description is invalid or null")
+    if not topics:
+        raise ValueError("The topics is invalid or null")
+    if not url:
+        raise ValueError("The url is invalid or null")
 
     # Prepare the request payload for Notion
     properties = {
@@ -162,16 +173,16 @@ def add_project_to_notion(repository: dict[str, Any], notion_database_id: str):
         )
         print(f"Added project: {title}")
     except Exception as e:
-        print(f"Failed to add project {title}: {e}")
+        _logger.exception("Failed: Unable to create the database page.", exc_info=e)
 
 
 # Main function to sync GitHub starred projects to Notion
-def sync_starred_projects_to_notion(notion_database_id: str):
+def sync_starred_projects_to_notion(github_api_url: str, github_api_token: str, notion_database_id: str):
     """
     Get the list of starred repositories and add it to the Notion database.
     :return:
     """
-    repos = get_starred_repos()
+    repos: list[dict] = get_starred_repos(github_api_url, github_api_token)
     if repos:
         for repo in repos:
             add_project_to_notion(repo, notion_database_id)
