@@ -1,0 +1,112 @@
+{
+    "Tool-Script-Header" :
+    {
+        "prefix": "scriptheader",
+        "description": "The default declarations for all scripts that use shared functions.",
+        "body": [
+            "#!/usr/bin/env bash",
+            "<<EOF",
+            "",
+            "   Tool \\ Shell Scripts \\ $1 \\ $2",
+            "",
+            "   $3",
+            "",
+            "EOF",
+            "CURRENT_SCRIPT_DIRECTORY=\\${CURRENT_SCRIPT_DIRECTORY:-$(dirname \\$(realpath \\${BASH_SOURCE[0]:-\\${(%):-%x}}))}",
+            "export SHARED_EXT_SCRIPTS_PATH=\\${SHARED_EXT_SCRIPTS_PATH:-\\$(realpath \\$CURRENT_SCRIPT_DIRECTORY/scripts)}",
+            "export CURRENT_SCRIPT_FILENAME=\\${CURRENT_SCRIPT_FILENAME:-$(basename \\${BASH_SOURCE[0]:-\\${(%):-%x}})}",
+            "export CURRENT_SCRIPT_FILENAME_BASE=\\${CURRENT_SCRIPT_FILENAME%.*}",
+            ". \"\\$SHARED_EXT_SCRIPTS_PATH/shared_functions.sh\"",
+            "write_header"
+        ]
+    },
+    "Tool-Shared-Script-Header" :
+    {
+        "prefix": "sharedscriptheader",
+        "description": "The default declarations for a script with shareable functions.",
+        "body": [
+            "#!/usr/bin/env bash",
+            "<<EOF",
+            "",
+            "   Tool \\ Shared Functions \\ $1 \\ $2",
+            "",
+            "   $3",
+            "",
+            "EOF",
+            "[ -n \"\\${SHARED_FUNCTIONS_EXT}\" ] && return",
+            "SHARED_FUNCTIONS_EXT=0",
+            "CURRENT_SCRIPT_DIRECTORY_FUNCTIONS=$(dirname $(realpath ${BASH_SOURCE[0]:-${(%):-%x}}))",
+            "export SHARED_EXT_SCRIPTS_PATH=$(realpath \\${SHARED_EXT_SCRIPTS_PATH:-\\$CURRENT_SCRIPT_DIRECTORY_FUNCTIONS})"
+        ]
+    },
+    "Tool-Script-Options" :
+    {
+        "prefix": "scriptoptions",  
+        "body": [
+            "while getopts ':$1h?' opt; do",
+            "   case \\$opt in",
+            "        h|?)",
+            "            usage",
+            "        ;;",
+            "        :)",
+            "            write_error \"${TM_FILENAME_BASE}\" \"-\\${OPTARG} requires an argument\"",
+            "            usage",
+            "        ;;",
+            "        *)",
+            "            usage",
+            "        ;;",
+            "   esac",
+            "done"
+        ]
+    },
+    "Tool-Write-Response" :
+    {
+        "prefix": "wr",
+        "description": "",
+        "body": [
+            "write_response \"${TM_FILENAME_BASE/(.*)/${1:/downcase}/}\" \"$1\""
+        ]
+    },
+    "Tool-Write-Info" :
+    {
+        "prefix": "wi",
+        "description": "",
+        "body": [
+            "write_info \"${TM_FILENAME_BASE/(.*)/${1:/downcase}/}\" \"$1\""
+        ]
+    },
+    "Tool-Write-Error" :
+    {
+        "prefix": "we",
+        "description": "",
+        "body": [
+            "write_error \"${TM_FILENAME_BASE/(.*)/${1:/downcase}/}\" \"$1\""
+        ]
+    },
+    "Tool-Write-Success" :
+    {
+        "prefix": "ws",
+        "description": "",
+        "body": [
+            "write_success \"${TM_FILENAME_BASE/(.*)/${1:/downcase}/}\" \"$1\""
+        ]
+    },
+    "Tool-Write-Warning" :
+    {
+        "prefix": "ww",
+        "description": "",
+        "body": [
+            "write_warning \"${TM_FILENAME_BASE/(.*)/${1:/downcase}/}\" \"$1\""
+        ]
+    },
+    "Tool-Null-Check" :
+    {
+        "prefix": "null",
+        "description": "A simple null check",
+        "body": [
+            "if [ -z \"$1\" ]; then",
+            "   $2",
+            "fi"
+        ]
+    }
+}

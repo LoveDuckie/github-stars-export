@@ -22,25 +22,6 @@ GITHUB_API_URL = "https://api.github.com/user/starred"
 notion_client = Client(auth=NOTION_API_TOKEN)
 
 
-def get_time_formatted() -> str:
-    """
-    Get the formatted time stamp
-    :return: Returns the formatted time stamp
-    """
-    from datetime import datetime
-
-    # Get the current date and time
-    current_datetime = datetime.now()
-
-    # Format the date and time as dd-MM-YYYY_HHmmss
-    formatted_datetime = current_datetime.strftime("%d-%m-%Y_%H%M%S")
-    return formatted_datetime
-
-
-_logger = logging.getLogger(__name__)
-_logger.addHandler(logging.StreamHandler())
-_logger.addHandler(
-    logging.handlers.RotatingFileHandler(os.path.join(os.getcwd(), f"{__project__}_{get_time_formatted()}.log")))
 
 
 @click.group("cli", help="Run the export operation.")
@@ -54,6 +35,9 @@ _logger.addHandler(
 def cli(context: click.Context, github_api_token: str, notion_api_token: str, notion_database_id: str):
     """
     The base command-line interface
+    :type notion_database_id: str
+    :type notion_api_token: str
+    :type github_api_token: str
     :param github_api_token: The API token for GitHub
     :param notion_api_token: The API token for Notion
     :param notion_database_id: The database ID for Notion
@@ -62,6 +46,15 @@ def cli(context: click.Context, github_api_token: str, notion_api_token: str, no
     """
     if not context:
         raise ValueError("The context specified is invalid or null")
+
+    if not github_api_token:
+        raise ValueError("The GitHub API token is invalid")
+
+    if not notion_api_token:
+        raise ValueError("The Notion API token is invalid")
+
+    if not notion_database_id:
+        raise ValueError("The database ID is invalid")
 
     context.obj['github_api_token'] = github_api_token
     context.obj['notion_database_id'] = notion_database_id
@@ -72,7 +65,7 @@ def cli(context: click.Context, github_api_token: str, notion_api_token: str, no
 @click.pass_context
 def cli_run(context: click.Context):
     """
-
+    Run the export tool
     :param context:
     :return:
     """
@@ -93,7 +86,7 @@ def cli_run(context: click.Context):
 # Function to get starred repositories from GitHub
 def get_starred_repos(github_api_url: str, github_api_token: str) -> list[dict]:
     """
-    Get the list of starred repositories
+    Get the list of starred repositories from the user account
     :param github_api_token:
     :type github_api_url: str
     :return:
@@ -123,10 +116,10 @@ def add_project_to_notion(repository: dict[str, Any], notion_api_token: str, not
     :param repository:
     :return:
     """
-    title = repository.get("name")
-    description = repository.get("description", "No description provided.")
-    topics = repository.get("topics", [])
-    url = repository.get("html_url")
+    title: str = repository.get("name")
+    description: str = repository.get("description", "No description provided.")
+    topics: list[str] = repository.get("topics", [])
+    url: str = repository.get("html_url")
 
     if not title:
         raise ValueError("The title is invalid or null")
