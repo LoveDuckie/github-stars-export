@@ -8,20 +8,18 @@ from dotenv import load_dotenv
 from notion_client import Client
 
 from github_stars_export import __project__
+from github_stars_export.helpers.logging.helpers_logging import get_or_create_logging
 
 # Load environment variables
 load_dotenv()
 
-GITHUB_API_TOKEN = os.getenv("GITHUB_API_TOKEN")
-NOTION_API_TOKEN = os.getenv("NOTION_API_TOKEN")
-NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID")
 # GitHub API URL
 GITHUB_API_URL = "https://api.github.com/user/starred"
 
 # Initialize Notion client
 notion_client = Client(auth=NOTION_API_TOKEN)
 
-
+_logger: logging.Logger = get_or_create_logging()
 
 
 @click.group("cli", help="Run the export operation.")
@@ -131,7 +129,40 @@ def add_project_to_notion(repository: dict[str, Any], notion_api_token: str, not
         raise ValueError("The url is invalid or null")
 
     # Prepare the request payload for Notion
-    properties = {
+    properties = generate_notion_payload(description, title, topics, url)
+
+    # Send the data to Notion
+    try:
+        notion_client.pages.create(
+            parent={"database_id": notion_database_id},
+            properties=properties
+        )
+        print(f"Added project: {title}")
+    except Exception as add_proj_exc:
+        _logger.exception("Failed: Unable to create the database page.", exc_info=add_proj_exc)
+
+
+def generate_notion_payload(description: str, title: str, topics: list[str], url: str):
+    """
+    Generate the payload for invoking the Notion API
+    :param description: The description.
+    :param title: The title of the Notion payload.
+    :param topics:
+    :param url:
+    :return:
+    """
+    if not description:
+        raise ValueError("The description is invalid or null")
+
+    if not title:
+        raise ValueError("The title is invalid or null")
+
+    if not topics:
+        raise ValueError("The topics is invalid or null")
+
+    if not isinstance(topics, list):
+        raise TypeError("The topics is invalid or null")
+    properties: dict[str, any] = {
         "Name": {
             "title": [
                 {
@@ -157,16 +188,7 @@ def add_project_to_notion(repository: dict[str, Any], notion_api_token: str, not
             "multi_select": [{"name": topic} for topic in topics]
         }
     }
-
-    # Send the data to Notion
-    try:
-        notion_client.pages.create(
-            parent={"database_id": NOTION_DATABASE_ID},
-            properties=properties
-        )
-        print(f"Added project: {title}")
-    except Exception as e:
-        _logger.exception("Failed: Unable to create the database page.", exc_info=e)
+    return properties
 
 
 # Main function to sync GitHub starred projects to Notion
@@ -185,5 +207,5 @@ def sync_starred_projects_to_notion(github_api_url: str, github_api_token: str, 
 
 try:
     cli()
-except Exception as e:
-    pass
+except Exception as exc:
+    _logger.exception("Failed: Unable to run command-line tool.", exc_info=exc)

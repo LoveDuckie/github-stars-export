@@ -11,6 +11,10 @@ from github_stars_export import __project__
 
 
 def get_or_create_logging() -> logging.Logger:
+    """
+    Get or instantiate the logging instance.
+    :return:
+    """
     _logger = logging.getLogger(__name__)
     _logger.addHandler(logging.StreamHandler())
     _logger.addHandler(
