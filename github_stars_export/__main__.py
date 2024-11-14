@@ -1,5 +1,4 @@
 import logging.handlers
-import os
 from typing import Any
 
 import requests
@@ -7,7 +6,6 @@ import rich_click as click
 from dotenv import load_dotenv
 from notion_client import Client
 
-from github_stars_export import __project__
 from github_stars_export.helpers.logging.helpers_logging import get_or_create_logging
 
 # Load environment variables
@@ -15,9 +13,6 @@ load_dotenv()
 
 # GitHub API URL
 GITHUB_API_URL = "https://api.github.com/user/starred"
-
-# Initialize Notion client
-notion_client = Client(auth=NOTION_API_TOKEN)
 
 _logger: logging.Logger = get_or_create_logging()
 
@@ -30,17 +25,13 @@ _logger: logging.Logger = get_or_create_logging()
 @click.option("--notion-database-id", envvar="NOTION_DATABASE_ID", default=None, required=True,
               help="The Notion database ID.")
 @click.pass_context
-def cli(context: click.Context, github_api_token: str, notion_api_token: str, notion_database_id: str):
+def cli(context: click.Context, github_api_token: str, notion_api_token: str, notion_database_id: str) -> int:
     """
-    The base command-line interface
-    :type notion_database_id: str
-    :type notion_api_token: str
-    :type github_api_token: str
-    :param github_api_token: The API token for GitHub
-    :param notion_api_token: The API token for Notion
-    :param notion_database_id: The database ID for Notion
-    :param context:
-    :return:
+    :param context: The Click context object providing access to the command line context.
+    :param github_api_token: The GitHub API token for authenticating GitHub API requests.
+    :param notion_api_token: The Notion API token for authenticating Notion API requests.
+    :param notion_database_id: The ID of the Notion database to be accessed or modified.
+    :return: None
     """
     if not context:
         raise ValueError("The context specified is invalid or null")
@@ -58,10 +49,12 @@ def cli(context: click.Context, github_api_token: str, notion_api_token: str, no
     context.obj['notion_database_id'] = notion_database_id
     context.obj['notion_api_token'] = notion_api_token
 
+    return 0
+
 
 @cli.command("run", help="Run the export operation.")
 @click.pass_context
-def cli_run(context: click.Context):
+def cli_run(context: click.Context) -> int:
     """
     Run the export tool
     :param context:
@@ -78,7 +71,12 @@ def cli_run(context: click.Context):
         raise ValueError("The Notion API token is invalid or null")
     if not notion_database_id:
         raise ValueError("The Notion database ID is invalid or null")
-    sync_starred_projects_to_notion(github_api_token, notion_api_token, notion_database_id)
+    try:
+        sync_starred_projects_to_notion(github_api_token, notion_api_token, notion_database_id)
+    except Exception as exc:
+        print(exc)
+
+    return 0
 
 
 # Function to get starred repositories from GitHub
@@ -107,13 +105,25 @@ def get_starred_repos(github_api_url: str, github_api_token: str) -> list[dict]:
 # Function to add a GitHub project to Notion
 def add_project_to_notion(repository: dict[str, Any], notion_api_token: str, notion_database_id: str):
     """
-    Add the project to Notion
-    :param notion_api_token: The API token for interfacing with Notion
-    :param notion_database_id: The Notion database ID
-    :type repository: object
-    :param repository:
-    :return:
+    Add a GitHub project to Notion database.
+    :param repository: Dictionary containing the project details such as name, description, topics, and html_url
+    :param notion_api_token: Notion API token for authentication
+    :param notion_database_id: Notion database ID where the project will be added
+    :return: None
     """
+
+    if not notion_api_token:
+        raise ValueError("The Notion API token is invalid or null")
+
+    if not notion_database_id:
+        raise ValueError("The database ID is invalid or null")
+
+    if not repository:
+        raise ValueError("The repository is invalid or null")
+
+    # Initialize Notion client
+    notion_client = Client(auth=notion_api_token)
+
     title: str = repository.get("name")
     description: str = repository.get("description", "No description provided.")
     topics: list[str] = repository.get("topics", [])
@@ -162,6 +172,7 @@ def generate_notion_payload(description: str, title: str, topics: list[str], url
 
     if not isinstance(topics, list):
         raise TypeError("The topics is invalid or null")
+
     properties: dict[str, any] = {
         "Name": {
             "title": [
@@ -200,12 +211,12 @@ def sync_starred_projects_to_notion(github_api_url: str, github_api_token: str, 
     repos: list[dict] = get_starred_repos(github_api_url, github_api_token)
     if repos:
         for repo in repos:
-            add_project_to_notion(repo, notion_database_id)
+            add_project_to_notion(repo, github_api_token, notion_database_id)
     else:
         print("No starred projects found.")
 
 
 try:
-    cli()
+    cli(auto_envvar_prefix="GITHUB_STARS_EXPORT")
 except Exception as exc:
     _logger.exception("Failed: Unable to run command-line tool.", exc_info=exc)
